@@ -6,6 +6,8 @@
 #include <stdio.h>
 
 pthread_mutex_t mutex;
+FILE *in_stream = stdin;
+FILE *out_stream = stdout;
 
 enum class Gender { MALE, FEMALE, NONE };
 
@@ -51,7 +53,7 @@ struct Room {
     }
 
     bool isFree() {
-        return persons.size() < capacity;
+        return persons.size() != capacity;
     }
 
     Gender getRoomGender() {
@@ -84,25 +86,25 @@ void *takeRoom(void *thread_parameter) {
     Person *person = static_cast<Person *>(thread_parameter);
 
     pthread_barrier_wait(&barrier);
-
+    usleep(rand() % 2000 + 150);
     pthread_mutex_lock(&mutex);
 
     Room *room = findRoom(person->gender);
     if (!room) {
-        printf("%s guest without room :(\n", person->gender == Gender::MALE ? "Male" : "Female");
+        printf("%s guest with id %d without room :(\n", person->gender == Gender::MALE ? "Male" : "Female", person->id);
         pthread_mutex_unlock(&mutex);
         return nullptr;
     }
     room->addPerson(person);
-    printf("%s guest take %d\n", person->gender == Gender::MALE ? "Male" : "Female", room->room_number);
+    printf("%s guest with id %d take %d\n", person->gender == Gender::MALE ? "Male" : "Female", person->id, room->room_number);
     pthread_mutex_unlock(&mutex);
 
-    usleep(10);
+    usleep(rand() % 1000 + 150);
 
     pthread_mutex_lock(&mutex);
 
     room->removePerson(person);
-
+    printf("%s guest with id %d free room %d!!\n", person->gender == Gender::MALE ? "Male" : "Female", person->id, room->room_number);
     pthread_mutex_unlock(&mutex);
     usleep(10);
 
@@ -126,13 +128,15 @@ int main() {
     initializeRooms();
 
     pthread_mutex_init(&mutex, nullptr);
-    pthread_barrier_init(&barrier, nullptr, 100) ;
 
-    for (int i = 0; i < 100; ++i) {
+    int persons_number = 100;
+    pthread_barrier_init(&barrier, nullptr, persons_number);
+
+    for (int i = 0; i < persons_number; ++i) {
         persons.push_back(new Person("Cool name", i % 2 == 0 ? Gender::MALE : Gender::FEMALE));
     }
 
-    pthread_t threads[100];
+    pthread_t threads[persons_number];
     size_t i = 0;
     for (auto person_ptr : persons) {
         pthread_create(&threads[i], nullptr, takeRoom, static_cast<void *>(person_ptr));
