@@ -25,11 +25,17 @@ struct Data {
     Person *person_ptr;
     // Указатель на файл, в который следует выводить данные
     FILE *out;
+    // Флаг, которые указывает, нужно ли выводить данные ещё и в консоль
+    bool print_stdout;
 
-    Data() : person_ptr(nullptr), out(nullptr) {
+    Data() : person_ptr(nullptr), out(nullptr), print_stdout(false) {
     }
 
-    Data(Person *p, FILE *out) : person_ptr(p), out(out) {
+    Data(Person *p, FILE *out, bool print_stdout)
+        : person_ptr(p), out(out), print_stdout(print_stdout) {
+        if (out == stdout) {
+            this->print_stdout = false;
+        }
     }
 };
 
@@ -75,6 +81,10 @@ void *takeRoom(void *thread_parameter) {
     // Если такой комнаты нет, то выводим справочной сообщение, снимаем блокировку с мьютекса
     // и выходим из функции
     if (!room) {
+        if (data->print_stdout) {
+            fprintf(stdout, "%s guest with ID %d couldn't find an available room and left.\n",
+                    person->gender == Gender::MALE ? "Male" : "Female", person->id);
+        }
         fprintf(out, "%s guest with ID %d couldn't find an available room and left.\n",
                 person->gender == Gender::MALE ? "Male" : "Female", person->id);
         pthread_mutex_unlock(&mutex);
@@ -84,6 +94,10 @@ void *takeRoom(void *thread_parameter) {
     // Иначе селим клиента в найденную комнату, выводим справочную информацию
     // и снимаем блокировку с мьютекса
     room->addPerson(person);
+    if (data->print_stdout) {
+        fprintf(stdout, "%s guest with ID %d takes room number %d.\n",
+                person->gender == Gender::MALE ? "Male" : "Female", person->id, room->room_number);
+    }
     fprintf(out, "%s guest with ID %d takes room number %d.\n",
             person->gender == Gender::MALE ? "Male" : "Female", person->id, room->room_number);
     pthread_mutex_unlock(&mutex);
@@ -97,6 +111,10 @@ void *takeRoom(void *thread_parameter) {
 
     // Выселяем клиента из комнаты, выводим справочную информацию и снимаем блокировку
     room->removePerson(person);
+    if (data->print_stdout) {
+        fprintf(stdout, "%s guest with ID %d left room number %d.\n",
+                person->gender == Gender::MALE ? "Male" : "Female", person->id, room->room_number);
+    }
     fprintf(out, "%s guest with ID %d left room number %d.\n",
             person->gender == Gender::MALE ? "Male" : "Female", person->id, room->room_number);
     pthread_mutex_unlock(&mutex);
@@ -160,11 +178,17 @@ int main(int argc, char *argv[]) {
     int console_flag = 0;
     // Флаг, который указывает на то, следует ли случайно генерировать входные данные
     int random_flag = 0;
+    // Флаг, который указывает на то, следует ли выводить информацию и на экран, и в файл
+    int double_print_flag = 0;
     // Семя рандома
     int seed = 42;
 
-    while ((opt = getopt(argc, argv, "rs:i:o:m:f:")) != -1) {
+    while ((opt = getopt(argc, argv, "rds:i:o:m:f:")) != -1) {
         switch (opt) {
+            // Флаг двойного вывода
+            case 'd':
+                double_print_flag = 1;
+                break;
             // Генерация случайного набора
             case 'r':
                 random_flag = 1;
@@ -200,6 +224,12 @@ int main(int argc, char *argv[]) {
     // Устанавливаем семя рандома
     srand(seed);
 
+    // Если был запрошен двойной вывод, но не указан выходной файл, сообщаем об ошибке
+    if (double_print_flag != 0 && output == stdout) {
+        printf("You must specify the path to the output file via the -o option:\n");
+        return 0;
+    }
+
     // Выводим приглашение ко вводу в консоль
     if (input == stdin && !random_flag && !console_flag) {
         printf("Enter two non-negative integers separated by a space <men_count> <women_count>:\n");
@@ -208,7 +238,8 @@ int main(int argc, char *argv[]) {
     // Переменная для хранения кода, возвращаемого функцией для чтения
     int status_code = 0;
 
-    // Генерируем данные случайно, если установлен соответствующий флаг, иначе считываем с файла/консоли
+    // Генерируем данные случайно, если установлен соответствующий флаг, иначе считываем с
+    // файла/консоли
     if (random_flag) {
         generateRandomData(&men_count, &women_count);
         printf("Randomly generated data: men_count=%d, women_count=%d\n", men_count, women_count);
@@ -228,7 +259,8 @@ int main(int argc, char *argv[]) {
         return 0;
     } else if (men_count + women_count > kMaxPersonsAmount || men_count < 0 || women_count < 0) {
         // Выводим в случае, если входные данные не соответствуют диапазону
-        printf("The number of women and men in total cannot be more than 150."
+        printf(
+            "The number of women and men in total cannot be more than 150."
             " Also both values must be non-negative\n");
         return 0;
     } else if (!output) {
@@ -249,10 +281,11 @@ int main(int argc, char *argv[]) {
     // Создаем пакеты для потоков: добавляем в них указатель на клиента,
     // а также указатель на поток для вывода данных
     for (int i = 0; i < men_count; ++i) {
-        data[i] = Data(new Person(i, Gender::MALE), output);
+        data[i] = Data(new Person(i, Gender::MALE), output, double_print_flag);
     }
     for (int i = 0; i < women_count; ++i) {
-        data[men_count + i] = Data(new Person(men_count + i, Gender::FEMALE), output);
+        data[men_count + i] =
+            Data(new Person(men_count + i, Gender::FEMALE), output, double_print_flag);
     }
 
     // Создаем массив для хранения потоков
