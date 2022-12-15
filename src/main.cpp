@@ -184,8 +184,8 @@ int main(int argc, char *argv[]) {
                 break;
             // Количество клиентов женского пола
             case 'f':
-                console_flag = 1;
                 women_count = atoi(optarg);
+                console_flag = 1;
                 break;
             // seed для рандома
             case 's':
@@ -219,21 +219,21 @@ int main(int argc, char *argv[]) {
     // Если код возврата == 1, то не удалось получить доступ к потоку со входными данными
     // Если код возврата == 2, данные введены в неверном формате
     if (status_code == 1) {
-        printf("Cannot access stream with input.");
+        printf("Cannot access stream with input.\n");
         return 0;
     } else if (status_code == 2) {
         printf(
             "The input data is in the wrong format."
-            " Make sure the input consists of two integers separated by a space.");
+            " Make sure the input consists of two integers separated by a space.\n");
         return 0;
-    } else if (men_count + women_count > kMaxPersonsAmount && men_count > 0 && women_count > 0) {
+    } else if (men_count + women_count > kMaxPersonsAmount || men_count < 0 || women_count < 0) {
         // Выводим в случае, если входные данные не соответствуют диапазону
         printf("The number of women and men in total cannot be more than 150."
-            " Also both values must be non-negative ");
+            " Also both values must be non-negative\n");
         return 0;
     } else if (!output) {
         // Выводим в случае, если не удалось получить доступ к потоку для вывода данных
-        printf("Cannot access output stream.");
+        printf("Cannot access output stream.\n");
         return 0;
     }
 
