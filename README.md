@@ -83,6 +83,13 @@ g++ -std=c++17 main.cpp gender.h person.h room.h -lpthread -o solution
 
 ## Критерии на 7 баллов
 ### Файловый ввод и вывод
+<p align="center">
+<img src=screenshots/file_io.jpg alt="alt of image">
+</p>
+<p align="center">
+<em>Демонстрация файлового ввода/вывода.</em>
+</p>
+
 ### Примеры входных и выходных файлов
 ### Комбинации форматов ввода и вывода
 
